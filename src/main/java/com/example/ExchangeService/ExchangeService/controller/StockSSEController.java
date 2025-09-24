@@ -46,7 +46,7 @@ public class StockSSEController {
                     }
                     // Send all quotes as a single SSE event
                     emitter.send(quotesMap, MediaType.APPLICATION_JSON);
-                    Thread.sleep(5000); // update every second
+                    Thread.sleep(5000); // update every 5 seconds
                 }
             } catch (Exception e) {
                 emitter.completeWithError(e);

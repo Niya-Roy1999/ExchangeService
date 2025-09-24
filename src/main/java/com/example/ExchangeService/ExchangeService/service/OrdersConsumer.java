@@ -16,9 +16,15 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OrdersConsumer {
 
+    private final MatchingEngine matchingEngine;
+
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    public OrdersConsumer(MatchingEngine matchingEngine) {
+        this.matchingEngine = matchingEngine;
+    }
 
     @KafkaListener(
             topics = "orders.v1",
@@ -67,8 +73,7 @@ public class OrdersConsumer {
                     orderPayload.getUserId(),
                     orderPayload.getSymbol(),
                     orderPayload.getSide());
-
-            // Your business logic here
+            matchingEngine.process(orderPayload.getOrderId(), orderPayload);
         } catch (Exception e) {
             log.error("Error processing OrderPlaced event", e);
         }
