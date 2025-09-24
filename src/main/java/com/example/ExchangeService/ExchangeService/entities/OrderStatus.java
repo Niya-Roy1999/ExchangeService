@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// domain/OrderStatus.java
 @Entity
 @Table(name = "order_status")
 @Data

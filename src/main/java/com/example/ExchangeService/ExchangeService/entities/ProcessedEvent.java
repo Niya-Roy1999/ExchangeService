@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProcessedEvent {
+
     @Id
     private String eventId;
     private LocalDateTime processedAt = LocalDateTime.now();

@@ -9,5 +9,4 @@ public class ExchangeServiceApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(ExchangeServiceApplication.class, args);
 	}
-
 }
