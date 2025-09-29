@@ -36,10 +36,16 @@ finnhub:
 
 logging:
   level:
-    org.apache.kafka.clients.NetworkClient: ERROR
+    org.apache.kafka: warn
+    org.apache.kafka.clients.consumer.internals.ConsumerCoordinator: warn
+    org.apache.kafka.clients.consumer.internals.ConsumerUtils: warn
+    org.apache.kafka.clients.Metadata: warn
 
 stocks:
   symbols: AAPL,GOOG,TSLA,MSFT,AMZN
+
+
+
 
 
 

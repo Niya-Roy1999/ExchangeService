@@ -14,15 +14,15 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class OrdersConsumer {
+public class OrdersEventConsumer {
 
-    private final MatchingEngine matchingEngine;
+    private final MatchingEngineService matchingEngine;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-    public OrdersConsumer(MatchingEngine matchingEngine) {
+    public OrdersEventConsumer(MatchingEngineService matchingEngine) {
         this.matchingEngine = matchingEngine;
     }
 
@@ -52,6 +52,7 @@ public class OrdersConsumer {
                 handleOrderPlacedEvent(envelope);
             } else {
                 log.warn("Unknown event type: {}", envelope.getEventType());
+                handleOrderPlacedEvent(envelope);
             }
         } catch (JsonProcessingException e) {
             log.error("Error parsing JSON message: {}", message, e);

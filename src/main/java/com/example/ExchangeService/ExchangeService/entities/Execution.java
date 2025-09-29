@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,11 +17,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Execution {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Long orderId;
-    private Long userId;
+    private Long counterOrderId;
+    private String userId;
     private String instrumentSymbol;
     private String side;
     private BigDecimal quantity;

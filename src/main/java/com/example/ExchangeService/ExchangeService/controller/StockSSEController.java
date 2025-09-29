@@ -38,7 +38,6 @@ public class StockSSEController {
             try {
                 while (true) {
                     Map<String, Object> quotesMap = new HashMap<>();
-
                     // Fetch quotes for all predefined symbols
                     for (String symbol : symbols) {
                         String quoteJson = finnhubService.getStockQuote(symbol).block();
