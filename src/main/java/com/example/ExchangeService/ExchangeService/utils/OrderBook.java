@@ -4,7 +4,6 @@ import com.example.ExchangeService.ExchangeService.entities.Execution;
 import com.example.ExchangeService.ExchangeService.entities.Order;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
-import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -16,47 +15,138 @@ import java.util.*;
 @Slf4j
 public class OrderBook {
 
+    // Buy orders: higher price first, then older timestamp
     private PriorityQueue<Order> buyOrders = new PriorityQueue<>(
             (o1, o2) -> {
-                int cmp = o2.getPrice().compareTo(o1.getPrice());
+                BigDecimal price1 = o1.getPrice() != null ? o1.getPrice() : BigDecimal.ZERO;
+                BigDecimal price2 = o2.getPrice() != null ? o2.getPrice() : BigDecimal.ZERO;
+                int cmp = price2.compareTo(price1); // higher price first
                 return cmp != 0 ? cmp : o1.getTimeStamp().compareTo(o2.getTimeStamp());
             });
 
+    // Sell orders: lower price first, then older timestamp
     private PriorityQueue<Order> sellOrders = new PriorityQueue<>(
-            Comparator.comparing(Order::getPrice).thenComparing(Order::getTimeStamp));
+            (o1, o2) -> {
+                BigDecimal price1 = o1.getPrice() != null ? o1.getPrice() : BigDecimal.ZERO;
+                BigDecimal price2 = o2.getPrice() != null ? o2.getPrice() : BigDecimal.ZERO;
+                int cmp = price1.compareTo(price2); // lower price first
+                return cmp != 0 ? cmp : o1.getTimeStamp().compareTo(o2.getTimeStamp());
+            });
 
     private List<Order> stopOrders = new ArrayList<>();
+    private List<Order> waitingMarketOrders = new ArrayList<>(); // market orders waiting for price
     private BigDecimal lastTradedPrice = BigDecimal.ZERO;
 
-    //Adding an order in the order book
     public List<TradeResult> addOrder(Order order) {
-        log.info("Adding order:  {}", order);
-        //Creating an empty Executions ArrayList;
+        log.info("Adding order: {}", order);
         List<TradeResult> tradeResults = new ArrayList<>();
-        //Checking for any stop order
-        if(order.getOrderType() == OrderType.STOP_MARKET || order.getOrderType() == OrderType.STOP_LIMIT) {
+
+        // Stop orders go to stopOrders list
+        if (order.getOrderType() == OrderType.STOP_MARKET || order.getOrderType() == OrderType.STOP_LIMIT) {
             stopOrders.add(order);
             return tradeResults;
         }
 
-        //Checking for Opposite heap, if order is buy then check in sellOrders and vice verse
-        PriorityQueue<Order> opposite = (order.getOrderSide() == OrderSide.BUY) ? sellOrders : buyOrders;
-        while(!opposite.isEmpty() && order.getQuantity() > order.getFilledQuantity()) {
+        // Process the order
+        tradeResults.addAll(processOrder(order));
+        // Process any waiting market orders after a trade happens
+        tradeResults.addAll(processWaitingMarketOrders());
+        printOrderBookState();
+        return tradeResults;
+    }
+
+    private List<TradeResult> processOrder(Order order) {
+        List<TradeResult> tradeResults = new ArrayList<>();
+        // Check opposite heap
+        PriorityQueue<Order> opposite = order.getOrderSide() == OrderSide.BUY ? sellOrders : buyOrders;
+        while (!opposite.isEmpty() && order.getQuantity() > order.getFilledQuantity()) {
             Order bestOrder = opposite.peek();
-            //Calculating how much trade (quantities) can be executed
+            BigDecimal executionPrice;
+            boolean canMatch = false;
+
+            if (order.getOrderType() == OrderType.MARKET && bestOrder.getPrice() == null) {
+                // Market × Market case
+                if (lastTradedPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    executionPrice = lastTradedPrice;
+                    canMatch = true;
+                    log.info("Market × Market execution at lastTradedPrice: {}", executionPrice);
+                } else {
+                    // No lastTradedPrice available - wait
+                    log.info("Market × Market: No lastTradedPrice available, adding to waiting list");
+                    waitingMarketOrders.add(order);
+                    return tradeResults;
+                }
+            } else if (order.getOrderType() == OrderType.MARKET && bestOrder.getPrice() != null) {
+                // Market × Limit case
+                executionPrice = bestOrder.getPrice();
+                canMatch = true;
+                log.info("Market × Limit execution at limit price: {}", executionPrice);
+            } else if (order.getOrderType() == OrderType.LIMIT && bestOrder.getPrice() == null) {
+                // Limit × Market case
+                executionPrice = order.getPrice();
+                canMatch = true;
+                log.info("Limit × Market execution at limit price: {}", executionPrice);
+            } else {
+                // Limit × Limit case
+                executionPrice = order.getPrice();
+                if (order.getOrderSide() == OrderSide.BUY) {
+                    canMatch = executionPrice.compareTo(bestOrder.getPrice()) >= 0;
+                } else {
+                    canMatch = executionPrice.compareTo(bestOrder.getPrice()) <= 0;
+                }
+                if (canMatch) {
+                    executionPrice = bestOrder.getPrice(); // Price improvement
+                    log.info("Limit × Limit execution at best price: {}", executionPrice);
+                }
+            }
+            if (!canMatch)  break;
+
+            // Execute the trade
             int tradableQuantity = Math.min(bestOrder.getQuantity() - bestOrder.getFilledQuantity(),
                     order.getQuantity() - order.getFilledQuantity());
-            Execution execution = executeTrade(order, bestOrder, tradableQuantity);
+
+            Execution execution = executeTrade(order, bestOrder, tradableQuantity, executionPrice);
             tradeResults.add(new TradeResult(execution, List.of(order, bestOrder)));
-            if(bestOrder.getFilledQuantity() == bestOrder.getQuantity()) opposite.poll();
+
+            // Removing fully filled orders
+            if (bestOrder.getFilledQuantity() == bestOrder.getQuantity()) {
+                opposite.poll();
+            }
+
+            // Check stop orders after each trade
             tradeResults.addAll(checkStopOrders());
         }
-        //Add remaining order to its own heap
-        if(order.getQuantity() > order.getFilledQuantity()) {
-            if(order.getOrderSide() == OrderSide.BUY) buyOrders.add(order);
-            else sellOrders.add(order);
+
+        // Add remaining quantity to appropriate book/waiting list
+        if (order.getQuantity() > order.getFilledQuantity()) {
+            if (order.getOrderType() == OrderType.LIMIT) {
+                if (order.getOrderSide() == OrderSide.BUY) {
+                    buyOrders.add(order);
+                } else {
+                    sellOrders.add(order);
+                }
+            } else if (order.getOrderType() == OrderType.MARKET) {
+                waitingMarketOrders.add(order);
+            }
         }
-        printOrderBookState();
+        return tradeResults;
+    }
+
+    private List<TradeResult> processWaitingMarketOrders() {
+        List<TradeResult> tradeResults = new ArrayList<>();
+
+        if (waitingMarketOrders.isEmpty()) {
+            return tradeResults;
+        }
+        log.info("Processing {} waiting market orders", waitingMarketOrders.size());
+        // Process waiting market orders (avoid recursion)
+        List<Order> ordersToProcess = new ArrayList<>(waitingMarketOrders);
+        waitingMarketOrders.clear();
+        for (Order marketOrder : ordersToProcess) {
+            if (marketOrder.getQuantity() > marketOrder.getFilledQuantity()) {
+                tradeResults.addAll(processOrder(marketOrder));
+            }
+        }
         return tradeResults;
     }
 
@@ -74,6 +164,10 @@ public class OrderBook {
             log.info("STOP Orders:");
             stopOrders.forEach(o -> log.info("{}", o));
         }
+        if (!waitingMarketOrders.isEmpty()) {
+            log.info("WAITING MARKET Orders:");
+            waitingMarketOrders.forEach(o -> log.info("{}", o));
+        }
         log.info("Last Traded Price: {}", lastTradedPrice);
         log.info("============================");
     }
@@ -82,33 +176,45 @@ public class OrderBook {
         List<TradeResult> triggeredResult = new ArrayList<>();
         Iterator<Order> iterator = stopOrders.iterator();
 
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             Order stopOrder = iterator.next();
             boolean triggered = false;
 
-            if(stopOrder.getOrderSide() == OrderSide.BUY && lastTradedPrice != null && stopOrder.getStopPrice() != null &&
-                    lastTradedPrice.compareTo(stopOrder.getStopPrice()) >= 0) triggered = true;
-            else if(stopOrder.getOrderSide() == OrderSide.SELL && lastTradedPrice != null && stopOrder.getStopPrice() != null &&
-                    lastTradedPrice.compareTo(stopOrder.getStopPrice()) <= 0) triggered = true;
-
-            if(triggered) {
-                log.info("Stop order has been triggered: {}", stopOrder);
-                iterator.remove();
-                if(stopOrder.getOrderType() == OrderType.STOP_MARKET) stopOrder.setOrderType(OrderType.MARKET);
-                else stopOrder.setOrderType(OrderType.LIMIT);
-
-                triggeredResult.addAll(addOrder(stopOrder));
+            if (stopOrder.getOrderSide() == OrderSide.BUY &&
+                    lastTradedPrice != null &&
+                    stopOrder.getStopPrice() != null &&
+                    lastTradedPrice.compareTo(stopOrder.getStopPrice()) >= 0) {
+                triggered = true;
+            } else if (stopOrder.getOrderSide() == OrderSide.SELL &&
+                    lastTradedPrice != null &&
+                    stopOrder.getStopPrice() != null &&
+                    lastTradedPrice.compareTo(stopOrder.getStopPrice()) <= 0) {
+                triggered = true;
             }
-        } return triggeredResult;
+
+            if (triggered) {
+                log.info("Stop order triggered: {}", stopOrder);
+                iterator.remove();
+
+                if (stopOrder.getOrderType() == OrderType.STOP_MARKET) {
+                    stopOrder.setOrderType(OrderType.MARKET);
+                } else {
+                    stopOrder.setOrderType(OrderType.LIMIT);
+                }
+
+                triggeredResult.addAll(processOrder(stopOrder));
+            }
+        }
+        return triggeredResult;
     }
 
-    private Execution executeTrade(Order incoming, Order existing, int quantity) {
+    private Execution executeTrade(Order incoming, Order existing, int quantity, BigDecimal executionPrice) {
         log.info("Executing trade: {} units between {} and {}", quantity, incoming.getOrderId(), existing.getOrderId());
+
         incoming.setFilledQuantity(incoming.getFilledQuantity() + quantity);
         existing.setFilledQuantity(existing.getFilledQuantity() + quantity);
-
-        BigDecimal executionPrice = existing.getPrice();
         lastTradedPrice = executionPrice;
+
         Execution execution = Execution.builder()
                 .orderId(Long.parseLong(incoming.getOrderId()))
                 .counterOrderId(Long.parseLong(existing.getOrderId()))
