@@ -65,7 +65,6 @@ public class MatchingEngineService {
             log.warn("Duplicate event {} skipped", eventId);
             return;
         }
-
         // Convert event -> Order domain object
         Order order = createOrderFromEvent(event);
         String symbol = event.getSymbol();
@@ -96,7 +95,7 @@ public class MatchingEngineService {
         eventsRepo.save(new ProcessedEvent(eventId, Instant.now()));
     }
 
-    private OrderStatusE determineOrderStatus(Order order) {
+    OrderStatusE determineOrderStatus(Order order) {
         if (order.getFilledQuantity() == 0) {
             return OrderStatusE.PENDING;
         } else if (order.getFilledQuantity() < order.getQuantity()) {
