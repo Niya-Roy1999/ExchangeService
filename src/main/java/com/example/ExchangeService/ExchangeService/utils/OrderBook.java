@@ -4,6 +4,7 @@ import com.example.ExchangeService.ExchangeService.entities.Execution;
 import com.example.ExchangeService.ExchangeService.entities.Order;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import java.util.*;
 
 @Component
 @Slf4j
+@Getter
 public class OrderBook {
 
     // Buy orders: higher price first, then older timestamp
@@ -46,7 +48,6 @@ public class OrderBook {
             stopOrders.add(order);
             return tradeResults;
         }
-
         // Process the order
         tradeResults.addAll(processOrder(order));
         // Process any waiting market orders after a trade happens
@@ -63,7 +64,6 @@ public class OrderBook {
             Order bestOrder = opposite.peek();
             BigDecimal executionPrice;
             boolean canMatch = false;
-
             if (order.getOrderType() == OrderType.MARKET && bestOrder.getPrice() == null) {
                 // Market × Market case
                 if (lastTradedPrice.compareTo(BigDecimal.ZERO) > 0) {
@@ -100,7 +100,6 @@ public class OrderBook {
                 }
             }
             if (!canMatch)  break;
-
             // Execute the trade
             int tradableQuantity = Math.min(bestOrder.getQuantity() - bestOrder.getFilledQuantity(),
                     order.getQuantity() - order.getFilledQuantity());
@@ -134,7 +133,6 @@ public class OrderBook {
 
     private List<TradeResult> processWaitingMarketOrders() {
         List<TradeResult> tradeResults = new ArrayList<>();
-
         if (waitingMarketOrders.isEmpty()) {
             return tradeResults;
         }
@@ -173,20 +171,20 @@ public class OrderBook {
     }
 
     private List<TradeResult> checkStopOrders() {
-        List<TradeResult> triggeredResult = new ArrayList<>();
-        Iterator<Order> iterator = stopOrders.iterator();
+        List<TradeResult> allTriggeredResults = new ArrayList<>();
+        Queue<Order> triggeredQueue = new LinkedList<>();
 
+        // Find all stop orders that should trigger
+        Iterator<Order> iterator = stopOrders.iterator();
         while (iterator.hasNext()) {
             Order stopOrder = iterator.next();
             boolean triggered = false;
 
             if (stopOrder.getOrderSide() == OrderSide.BUY &&
-                    lastTradedPrice != null &&
                     stopOrder.getStopPrice() != null &&
                     lastTradedPrice.compareTo(stopOrder.getStopPrice()) >= 0) {
                 triggered = true;
             } else if (stopOrder.getOrderSide() == OrderSide.SELL &&
-                    lastTradedPrice != null &&
                     stopOrder.getStopPrice() != null &&
                     lastTradedPrice.compareTo(stopOrder.getStopPrice()) <= 0) {
                 triggered = true;
@@ -195,18 +193,31 @@ public class OrderBook {
             if (triggered) {
                 log.info("Stop order triggered: {}", stopOrder);
                 iterator.remove();
-
+                // Convert to MARKET or LIMIT
                 if (stopOrder.getOrderType() == OrderType.STOP_MARKET) {
                     stopOrder.setOrderType(OrderType.MARKET);
+                    stopOrder.setPrice(null); // Ensure market orders have null price
                 } else {
                     stopOrder.setOrderType(OrderType.LIMIT);
                 }
-
-                triggeredResult.addAll(processOrder(stopOrder));
+                triggeredQueue.add(stopOrder);
             }
         }
-        return triggeredResult;
+
+        // Process triggered stop orders iteratively to avoid recursion
+        while (!triggeredQueue.isEmpty()) {
+            Order stopOrder = triggeredQueue.poll();
+            List<TradeResult> results = processOrder(stopOrder);
+            allTriggeredResults.addAll(results);
+
+            // After processing a stop order, new stop orders may now trigger
+            List<TradeResult> newlyTriggered = checkStopOrders();
+            allTriggeredResults.addAll(newlyTriggered);
+        }
+
+        return allTriggeredResults;
     }
+
 
     private Execution executeTrade(Order incoming, Order existing, int quantity, BigDecimal executionPrice) {
         log.info("Executing trade: {} units between {} and {}", quantity, incoming.getOrderId(), existing.getOrderId());
