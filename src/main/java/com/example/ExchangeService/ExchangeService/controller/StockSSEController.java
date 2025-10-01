@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/stocks")
 public class StockSSEController {
 
+    // Working on new-design branch
     private final FinnhubService finnhubService;
     private final List<String> symbols;
 
