@@ -12,6 +12,7 @@ import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import com.example.ExchangeService.ExchangeService.events.OrderPlacedEvent;
 import java.time.Instant;
 import com.example.ExchangeService.ExchangeService.utils.OrderBook;
+import com.example.ExchangeService.ExchangeService.utils.OrderBookManager;
 import com.example.ExchangeService.ExchangeService.utils.TradeResult;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class MatchingEngineService {
     private final OrderStatusRepository statusRepo;
     private final ProcessedEventsRepository eventsRepo;
     private final ExecutionEventService kafkaProducerService;
+    private final OrderBookManager orderBookManager;
 
     private final Map<String, OrderBook> orderBooks = new ConcurrentHashMap<>();
 
@@ -43,6 +45,7 @@ public class MatchingEngineService {
         order.setInstrumentId(event.getSymbol());
         order.setOrderSide(event.getSide());
         order.setOrderType(event.getType());
+        order.setTimeInForce(event.getTimeInForce());
         order.setQuantity(event.getQuantity());
         order.setPrice(event.getPrice() != null ? BigDecimal.valueOf(event.getPrice()) : null);
         order.setStopPrice(event.getStopPrice() != null ? BigDecimal.valueOf(event.getStopPrice()) : null);
@@ -68,26 +71,31 @@ public class MatchingEngineService {
         // Convert event -> Order domain object
         Order order = createOrderFromEvent(event);
         String symbol = event.getSymbol();
-
-        // Find or Create Order book for the particular symbol
-        OrderBook orderBook = orderBooks.computeIfAbsent(symbol, k -> new OrderBook());
+        OrderBook orderBook = orderBookManager.getOrderBook(symbol);
         List<TradeResult> tradeResults = orderBook.addOrder(order);
 
         for(TradeResult result: tradeResults) {
             Execution execution = result.getExecution();
-            execRepo.save(execution);
 
             for(Order o: result.getOrdersInvolved()) {
                 OrderStatus status = new OrderStatus();
                 status.setOrderId(Long.parseLong(o.getOrderId()));
 
-                OrderStatusE orderStatus = determineOrderStatus(o);
+                OrderStatusE orderStatus;
+                if(execution != null) {
+                    orderStatus = determineOrderStatus(o);
+                    execRepo.save(execution);
+                    kafkaProducerService.publishOrderExecution(o, execution);
+                } else {
+                    orderStatus = OrderStatusE.CANCELLED;
+                    kafkaProducerService.publishOrderCancellation(o, "There is some issue in this ");
+                }
+
                 status.setStatus(orderStatus);
                 status.setFilledQuantity(BigDecimal.valueOf(o.getFilledQuantity()));
                 status.setUpdatedAt(Instant.now());
                 statusRepo.save(status);
-                // Publish combined event
-                kafkaProducerService.publishOrderExecution(o, execution);
+
                 log.info("Order {} status updated to {} (filled: {}/{})",
                         o.getOrderId(), orderStatus, o.getFilledQuantity(), o.getQuantity());
             }

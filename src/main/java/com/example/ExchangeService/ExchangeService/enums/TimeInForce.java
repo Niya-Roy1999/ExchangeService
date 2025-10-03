@@ -5,6 +5,5 @@ public enum TimeInForce {
     FILL_OR_KILL,
     GOOD_TILL_CANCELLED,
     DAY,
-    GOOD_TILL_DATE,
-    IOC_PARTIAL
+    GOOD_TILL_DATE
 }

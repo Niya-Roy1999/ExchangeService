@@ -1,11 +1,15 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
+import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
 import com.example.ExchangeService.ExchangeService.entities.Order;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
+import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +19,9 @@ import java.util.*;
 @Slf4j
 @Getter
 public class OrderBook {
+
+    @Setter
+    private TimeInForceHandler timeInForceHandler;
 
     // Buy orders: higher price first, then older timestamp
     private PriorityQueue<Order> buyOrders = new PriorityQueue<>(
@@ -42,6 +49,12 @@ public class OrderBook {
         log.info("Adding order: {}", order);
         List<TradeResult> tradeResults = new ArrayList<>();
 
+        if(!timeInForceHandler.validateOrderTIF(order)) {
+            log.warn("Order {} rejected due to invalid Time In Force", order.getOrderId());
+            tradeResults.add(timeInForceHandler.createCancellationResult(order, "Invalid Time In Force"));
+            return tradeResults;
+        }
+
         // Stop orders go to stopOrders list
         if (order.getOrderType() == OrderType.STOP_MARKET || order.getOrderType() == OrderType.STOP_LIMIT) {
             stopOrders.add(order);
@@ -51,12 +64,62 @@ public class OrderBook {
         tradeResults.addAll(processOrder(order));
         // Process any waiting market orders after a trade happens
         tradeResults.addAll(processWaitingMarketOrders());
+        // Cleaning up Expired Orders
+        cleanUpExpiredOrders();
         printOrderBookState();
         return tradeResults;
     }
 
+    private int calculateAvailableLiquidity(Order order) {
+        PriorityQueue<Order> opposite = order.getOrderSide() == OrderSide.BUY ? sellOrders : buyOrders;
+        int totalLiquidity = 0;
+
+        for(Order existingOrder: opposite) {
+            boolean canMatch = false;
+            if(order.getOrderType() == OrderType.MARKET) canMatch = true;
+            else if(existingOrder.getPrice() == null) canMatch = true;
+            else {
+                if(order.getOrderSide() == OrderSide.BUY) {
+                    canMatch = order.getPrice().compareTo(existingOrder.getPrice()) >= 0;
+                } else {
+                    canMatch = order.getPrice().compareTo(existingOrder.getPrice()) <= 0;
+                }
+            }
+            if(canMatch) totalLiquidity += (existingOrder.getQuantity() - existingOrder.getFilledQuantity());
+            else break;
+        } return totalLiquidity;
+    }
+
+    private void cleanUpExpiredOrders() {
+        List<Order> allOrders = new ArrayList<>();
+        allOrders.addAll(buyOrders);
+        allOrders.addAll(sellOrders);
+        allOrders.addAll(stopOrders);
+        allOrders.addAll(waitingMarketOrders);
+
+        List<Order> expiredOrders = timeInForceHandler.getExpiredOrders(allOrders);
+        for(Order expired: expiredOrders) {
+            log.info("Removing expired orders: {}", expired.getOrderId());
+            buyOrders.remove(expired);
+            sellOrders.remove(expired);
+            stopOrders.remove(expired);
+            waitingMarketOrders.remove(expired);
+        }
+    }
+
     private List<TradeResult> processOrder(Order order) {
         List<TradeResult> tradeResults = new ArrayList<>();
+
+        // Handling for FOK orders - checking if they can be completely filled or not
+        if(order.getTimeInForce() == TimeInForce.FILL_OR_KILL) {
+            int availableLiquidity = calculateAvailableLiquidity(order);
+            if(!timeInForceHandler.validateFOK(order, availableLiquidity)) {
+                log.info("Fill Or Kill order {} rejected - insufficient liquidity", order.getOrderId());
+                tradeResults.add(timeInForceHandler.createCancellationResult(order, "Fill Or Kill - Insufficient Liquidity"));
+                return tradeResults;
+            }
+        }
+
         // Check opposite heap
         PriorityQueue<Order> opposite = order.getOrderSide() == OrderSide.BUY ? sellOrders : buyOrders;
         while (!opposite.isEmpty() && order.getQuantity() > order.getFilledQuantity()) {
@@ -113,6 +176,12 @@ public class OrderBook {
 
             // Check stop orders after each trade
             tradeResults.addAll(checkStopOrders());
+        }
+
+        boolean wasPartiallyFilled = order.getFilledQuantity() > 0 && order.getFilledQuantity() < order.getQuantity();
+        if(timeInForceHandler.shouldCancelAfterExecution(order, wasPartiallyFilled)) {
+            tradeResults.add(timeInForceHandler.createCancellationResult(order, "Time In Force " + order.getTimeInForce() + " - unfilled portion cancelled"));
+            return tradeResults;
         }
 
         // Add remaining quantity to appropriate book/waiting list
