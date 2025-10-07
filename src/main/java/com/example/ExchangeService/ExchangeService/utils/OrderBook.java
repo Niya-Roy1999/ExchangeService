@@ -1,15 +1,13 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
-import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.entities.Order;
+import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

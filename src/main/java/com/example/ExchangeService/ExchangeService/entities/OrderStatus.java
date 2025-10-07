@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "order_status")
@@ -22,7 +21,7 @@ public class OrderStatus {
     private Long orderId;
 
     @Enumerated(EnumType.STRING)
-    private OrderStatusE status;           // e.g. FILLED
+    private OrderStatusE status;
     private BigDecimal filledQuantity;
     private Instant updatedAt;
 }

@@ -1,7 +1,7 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.entities.Order;
+import com.example.ExchangeService.ExchangeService.Model.Order;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

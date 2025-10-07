@@ -1,4 +1,4 @@
-package com.example.ExchangeService.ExchangeService.entities;
+package com.example.ExchangeService.ExchangeService.Model;
 
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor

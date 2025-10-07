@@ -4,7 +4,7 @@ import com.example.ExchangeService.ExchangeService.Repositories.ExecutionReposit
 import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
 import com.example.ExchangeService.ExchangeService.Repositories.ProcessedEventsRepository;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.entities.Order;
+import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.entities.OrderStatus;
 import com.example.ExchangeService.ExchangeService.entities.ProcessedEvent;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;

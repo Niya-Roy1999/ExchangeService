@@ -1,13 +1,11 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
-import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
-import com.example.ExchangeService.ExchangeService.entities.Order;
+import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 

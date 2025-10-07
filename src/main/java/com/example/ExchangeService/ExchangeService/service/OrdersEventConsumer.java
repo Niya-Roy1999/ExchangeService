@@ -60,6 +60,7 @@ public class OrdersEventConsumer {
             log.error("Error processing message: {}", message, e);
         }
     }
+
     private void handleOrderPlacedEvent(EventEnvelope<Object> eventEnvelope) {
         try {
             log.info("Raw payload: {}", eventEnvelope.getPayload());

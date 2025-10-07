@@ -1,7 +1,7 @@
 package com.example.ExchangeService.ExchangeService.service;
 
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.entities.Order;
+import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.Repositories.ExecutionRepository;
 import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
 import com.example.ExchangeService.ExchangeService.Repositories.ProcessedEventsRepository;
