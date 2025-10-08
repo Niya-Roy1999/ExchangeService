@@ -1,6 +1,6 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
-import com.example.ExchangeService.ExchangeService.Model.Order;
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.BaseOrder;
 import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,7 @@ import java.util.List;
 @Slf4j
 public class TimeInForceHandler {
 
-    public boolean validateOrderTIF(Order order) {
+    public boolean validateOrderTIF(BaseOrder order) {
         TimeInForce tif = order.getTimeInForce();
         if (tif == null) {
             order.setTimeInForce(TimeInForce.GOOD_TILL_CANCELLED);
@@ -42,7 +42,7 @@ public class TimeInForceHandler {
         return true;
     }
 
-    public boolean validateFOK(Order order, int availableLiquidity) {
+    public boolean validateFOK(BaseOrder order, int availableLiquidity) {
         if (order.getTimeInForce() != TimeInForce.FILL_OR_KILL) return true;
         int remainingQuantity = order.getQuantity() - order.getFilledQuantity();
 
@@ -55,16 +55,16 @@ public class TimeInForceHandler {
         return true;
     }
 
-    public List<Order> getExpiredOrders(List<Order> orders) {
-        List<Order> expiredOrders = new ArrayList<>();
+    public List<BaseOrder> getExpiredOrders(List<BaseOrder> orders) {
+        List<BaseOrder> expiredOrders = new ArrayList<>();
         Instant now = Instant.now();
-        for (Order order : orders) {
+        for (BaseOrder order : orders) {
             if (isOrderExpired(order, now)) expiredOrders.add(order);
         }
         return expiredOrders;
     }
 
-    public boolean isOrderExpired(Order order, Instant currentTime) {
+    public boolean isOrderExpired(BaseOrder order, Instant currentTime) {
         TimeInForce tif = order.getTimeInForce();
         if (tif == null) return false;
 
@@ -81,13 +81,13 @@ public class TimeInForceHandler {
         }
     }
 
-    private boolean isEndOfTradingDay(Order order, Instant currentTime) {
+    private boolean isEndOfTradingDay(BaseOrder order, Instant currentTime) {
         Instant expiry = order.getExpiryTime();
         if (expiry == null) return false;
         return currentTime.isAfter(expiry);
     }
 
-    public boolean shouldCancelAfterExecution(Order order, boolean wasPartiallyFilled) {
+    public boolean shouldCancelAfterExecution(BaseOrder order, boolean wasPartiallyFilled) {
         TimeInForce timeInForce = order.getTimeInForce();
         if (timeInForce == null) return false;
 
@@ -114,7 +114,7 @@ public class TimeInForceHandler {
         return false;
     }
 
-    public TradeResult createCancellationResult(Order order, String reason) {
+    public TradeResult createCancellationResult(BaseOrder order, String reason) {
         log.info("Cancelling order {} due to Time In Force {}: {}", order.getOrderId(), order.getTimeInForce(), reason);
         return new TradeResult(null, List.of(order));
     }

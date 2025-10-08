@@ -1,7 +1,7 @@
 package com.example.ExchangeService.ExchangeService.service;
 
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.BaseOrder;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.enums.OrderStatusE;
 import com.example.ExchangeService.ExchangeService.events.EventEnvelope;
 import com.example.ExchangeService.ExchangeService.events.OrderCancelledEvent;
@@ -25,7 +25,7 @@ public class ExecutionEventService {
     private static final String Order_Topic = "execution.v1";
     private static final String Failed_Order_Topic = "failed.v1";
 
-    public void publishOrderExecution(Order order, Execution execution) {
+    public void publishOrderExecution(BaseOrder order, Execution execution) {
 
         if(execution == null) {
             throw new IllegalArgumentException("Exception cannot be null for trade event");
@@ -63,7 +63,7 @@ public class ExecutionEventService {
         log.info("Published OrderExecutionEvent to Kafka: {}", envelope);
     }
 
-    public void publishOrderCancellation(Order order, String reason) {
+    public void publishOrderCancellation(BaseOrder order, String reason) {
         OrderCancelledEvent payload = OrderCancelledEvent.builder()
                 .orderId(order.getOrderId())
                 .userId(order.getUserId())
@@ -89,11 +89,11 @@ public class ExecutionEventService {
         log.info("🚫 Published OrderCancelledEvent to Kafka: {}", envelope);
     }
 
-    private String getStatusString(Order order) {
+    private String getStatusString(BaseOrder order) {
         return getOrderStatus(order).name();
     }
 
-    private OrderStatusE getOrderStatus(Order order) {
+    private OrderStatusE getOrderStatus(BaseOrder order) {
         if (order.getFilledQuantity() == 0) {
             return OrderStatusE.PENDING;
         } else if (order.getFilledQuantity() < order.getQuantity()) {

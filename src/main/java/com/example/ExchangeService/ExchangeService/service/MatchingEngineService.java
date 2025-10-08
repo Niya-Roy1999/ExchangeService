@@ -1,18 +1,19 @@
 package com.example.ExchangeService.ExchangeService.service;
 
+import com.example.ExchangeService.ExchangeService.Model.*;
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.BaseOrder;
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrderEvent.BaseOrderPlacedEvent;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.Model.Order;
 import com.example.ExchangeService.ExchangeService.Repositories.ExecutionRepository;
 import com.example.ExchangeService.ExchangeService.Repositories.OrderStatusRepository;
 import com.example.ExchangeService.ExchangeService.Repositories.ProcessedEventsRepository;
 import com.example.ExchangeService.ExchangeService.entities.OrderStatus;
 import com.example.ExchangeService.ExchangeService.entities.ProcessedEvent;
 import com.example.ExchangeService.ExchangeService.enums.OrderStatusE;
-import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
-import com.example.ExchangeService.ExchangeService.events.OrderPlacedEvent;
 import java.time.Instant;
 import com.example.ExchangeService.ExchangeService.utils.OrderBook;
 import com.example.ExchangeService.ExchangeService.utils.OrderBookManager;
+import com.example.ExchangeService.ExchangeService.utils.OrderMapper;
 import com.example.ExchangeService.ExchangeService.utils.TradeResult;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,75 +35,67 @@ public class MatchingEngineService {
     private final ProcessedEventsRepository eventsRepo;
     private final ExecutionEventService kafkaProducerService;
     private final OrderBookManager orderBookManager;
+    private final OrderMapper orderMapper;
 
     private final Map<String, OrderBook> orderBooks = new ConcurrentHashMap<>();
 
-    public Order createOrderFromEvent(OrderPlacedEvent event) {
-        Order order = new Order();
-        order.setOrderId(event.getOrderId());
-        order.setUserId(event.getUserId());
-        order.setInstrumentId(event.getSymbol());
-        order.setOrderSide(event.getSide());
-        order.setOrderType(event.getType());
-        order.setTimeInForce(event.getTimeInForce());
-        order.setQuantity(event.getQuantity());
-        order.setPrice(event.getPrice() != null ? BigDecimal.valueOf(event.getPrice()) : null);
-        order.setStopPrice(event.getStopPrice() != null ? BigDecimal.valueOf(event.getStopPrice()) : null);
-        order.setTrailingOffset(event.getTrailingOffset() != null ? BigDecimal.valueOf(event.getTrailingOffset()) : null);
-        order.setTrailingType(event.getTrailingType());
-        order.setDisplayQuantity(event.getDisplayQuantity() != null ? event.getDisplayQuantity() : event.getQuantity());
-
-        if(event.getTimeInForce() != null) {
-            order.setExpiryTime(event.getTimeInForce() == TimeInForce.GOOD_TILL_DATE
-            ? Instant.now().plus(1, ChronoUnit.HOURS) : null);
-        }
-        order.setTimeStamp(Instant.now());
-        return order;
-    }
-
     @Transactional
-    public void process(String eventId, OrderPlacedEvent event) {
-        // Idempotency check
+    public void process(String eventId, BaseOrderPlacedEvent event) {
+        // 1️⃣ Idempotency check
         if (eventsRepo.existsById(eventId)) {
             log.warn("Duplicate event {} skipped", eventId);
             return;
         }
-        // Convert event -> Order domain object
-        Order order = createOrderFromEvent(event);
-        String symbol = event.getSymbol();
-        OrderBook orderBook = orderBookManager.getOrderBook(symbol);
-        List<TradeResult> tradeResults = orderBook.addOrder(order);
 
-        for(TradeResult result: tradeResults) {
-            Execution execution = result.getExecution();
+        try {
+            // 2️⃣ Map event -> typed domain order
+            BaseOrder domainOrder = orderMapper.mapToDomainOrder(event);
+            // 3️⃣ Get the order book for the symbol
+            String symbol = event.getSymbol();
+            OrderBook orderBook = orderBookManager.getOrderBook(symbol);
+            // 4️⃣ Add order to the order book and execute trades
+            List<TradeResult> tradeResults = orderBook.addOrder(domainOrder);
+            // 5️⃣ Persist executions and update order status
+            for (TradeResult result : tradeResults) {
+                Execution execution = result.getExecution();
 
-            for(Order o: result.getOrdersInvolved()) {
-                OrderStatus status = new OrderStatus();
-                status.setOrderId(Long.parseLong(o.getOrderId()));
+                for (BaseOrder o : result.getOrdersInvolved()) {
+                    OrderStatus status = new OrderStatus();
+                    status.setOrderId(Long.parseLong(o.getOrderId()));
 
-                OrderStatusE orderStatus;
-                if(execution != null) {
-                    orderStatus = determineOrderStatus(o);
-                    execRepo.save(execution);
-                    kafkaProducerService.publishOrderExecution(o, execution);
-                } else {
-                    orderStatus = OrderStatusE.CANCELLED;
-                    kafkaProducerService.publishOrderCancellation(o, "There is some issue in this ");
+                    OrderStatusE orderStatus;
+                    if (execution != null) {
+                        orderStatus = determineOrderStatus(o);
+                        execRepo.save(execution);
+                        kafkaProducerService.publishOrderExecution(o, execution);
+                    } else {
+                        orderStatus = OrderStatusE.CANCELLED;
+                        kafkaProducerService.publishOrderCancellation(o, "Issue occurred in execution");
+                    }
+
+                    status.setStatus(orderStatus);
+                    status.setFilledQuantity(BigDecimal.valueOf(o.getFilledQuantity()));
+                    status.setUpdatedAt(Instant.now());
+                    statusRepo.save(status);
+
+                    log.info("Order {} status updated to {} (filled: {}/{})",
+                            o.getOrderId(), orderStatus, o.getFilledQuantity(), o.getQuantity());
                 }
-
-                status.setStatus(orderStatus);
-                status.setFilledQuantity(BigDecimal.valueOf(o.getFilledQuantity()));
-                status.setUpdatedAt(Instant.now());
-                statusRepo.save(status);
-
-                log.info("Order {} status updated to {} (filled: {}/{})",
-                        o.getOrderId(), orderStatus, o.getFilledQuantity(), o.getQuantity());
             }
+
+            // 6️⃣ Mark the event as processed
+            eventsRepo.save(new ProcessedEvent(eventId, Instant.now()));
+
+        } catch (Exception e) {
+            log.error("Error processing order event {}", eventId, e);
+            throw e; // optional: rethrow for transaction rollback
         }
-        eventsRepo.save(new ProcessedEvent(eventId, Instant.now()));
     }
 
-    OrderStatusE determineOrderStatus(Order order) {
+    /**
+     * Determine order status based on filled quantity
+     */
+    private OrderStatusE determineOrderStatus(BaseOrder order) {
         if (order.getFilledQuantity() == 0) {
             return OrderStatusE.PENDING;
         } else if (order.getFilledQuantity() < order.getQuantity()) {

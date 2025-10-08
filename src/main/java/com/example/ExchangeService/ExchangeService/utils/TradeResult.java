@@ -1,5 +1,6 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.BaseOrder;
 import com.example.ExchangeService.ExchangeService.entities.Execution;
 import com.example.ExchangeService.ExchangeService.Model.Order;
 import lombok.AllArgsConstructor;
@@ -15,9 +16,9 @@ import java.util.List;
 public class TradeResult {
 
     private Execution execution;
-    private List<Order> ordersInvolved;
+    private List<BaseOrder> ordersInvolved;
 
-    public Order getOtherOrder(Order order) {
+    public BaseOrder getOtherOrder(BaseOrder order) {
         if(ordersInvolved == null || ordersInvolved.size() != 2) {
             throw new IllegalArgumentException("TradeResult must have exactly 2 orders");
         } return ordersInvolved.get(0).equals(order) ? ordersInvolved.get(1) : ordersInvolved.get(0);

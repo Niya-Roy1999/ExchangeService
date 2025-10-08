@@ -1,5 +1,6 @@
 package com.example.ExchangeService.ExchangeService.service;
 
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrderEvent.BaseOrderPlacedEvent;
 import com.example.ExchangeService.ExchangeService.events.EventEnvelope;
 import com.example.ExchangeService.ExchangeService.events.OrderPlacedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -7,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -14,17 +16,15 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class OrdersEventConsumer {
 
     private final MatchingEngineService matchingEngine;
+    private final OrderEventValidator validator;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-    public OrdersEventConsumer(MatchingEngineService matchingEngine) {
-        this.matchingEngine = matchingEngine;
-    }
 
     @KafkaListener(
             topics = "orders.v1",
@@ -65,9 +65,9 @@ public class OrdersEventConsumer {
         try {
             log.info("Raw payload: {}", eventEnvelope.getPayload());
 
-            OrderPlacedEvent orderPayload = objectMapper.convertValue(
+            BaseOrderPlacedEvent orderPayload = objectMapper.convertValue(
                     eventEnvelope.getPayload(),
-                    OrderPlacedEvent.class
+                    BaseOrderPlacedEvent.class
             );
 
             log.info("Processing OrderPlaced event - OrderId: {}, UserId: {}, Symbol: {}, Side: {}",
@@ -75,6 +75,7 @@ public class OrdersEventConsumer {
                     orderPayload.getUserId(),
                     orderPayload.getSymbol(),
                     orderPayload.getSide());
+            validator.validate(orderPayload);
             matchingEngine.process(orderPayload.getOrderId(), orderPayload);
         } catch (Exception e) {
             log.error("Error processing OrderPlaced event", e);
