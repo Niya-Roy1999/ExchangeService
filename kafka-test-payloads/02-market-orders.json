@@ -1,0 +1,92 @@
+{
+  "testScenario": "Market Order Tests",
+  "description": "Test market orders matching with limit orders",
+  "payloads": [
+    {
+      "name": "Limit Sell Order - User5 sells 200 AAPL at $149.00",
+      "topic": "orders.v1",
+      "key": "ORDER_2001",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-2001-20251009235200000",
+        "timeStamp": "2025-01-10T10:05:00Z",
+        "payload": {
+          "orderId": "2001-20251009235516000",
+          "userId": "user5",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 200,
+          "limitPrice": 149.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:05:00Z"
+        }
+      }
+    },
+    {
+      "name": "Market Buy Order - User6 buys 150 AAPL at market price",
+      "topic": "orders.v1",
+      "key": "ORDER_2002",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-2002-20251009235200001",
+        "timeStamp": "2025-01-10T10:05:05Z",
+        "payload": {
+          "orderId": "2002-20251009235516001",
+          "userId": "user6",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "MARKET",
+          "quantity": 150,
+          "timeInForce": "IMMEDIATE_OR_CANCEL",
+          "timestamp": "2025-01-10T10:05:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Buy Order - User7 buys 100 AAPL at $148.00",
+      "topic": "orders.v1",
+      "key": "ORDER_2003",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-2003-20251009235200002",
+        "timeStamp": "2025-01-10T10:06:00Z",
+        "payload": {
+          "orderId": "2003-20251009235516002",
+          "userId": "user7",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 148.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:06:00Z"
+        }
+      }
+    },
+    {
+      "name": "Market Sell Order - User8 sells 100 AAPL at market price",
+      "topic": "orders.v1",
+      "key": "ORDER_2004",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-2004-20251009235200003",
+        "timeStamp": "2025-01-10T10:06:05Z",
+        "payload": {
+          "orderId": "2004-20251009235516003",
+          "userId": "user8",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "MARKET",
+          "quantity": 100,
+          "timeInForce": "IMMEDIATE_OR_CANCEL",
+          "timestamp": "2025-01-10T10:06:05Z"
+        }
+      }
+    }
+  ],
+  "expectedResults": {
+    "ORDER_2002": "Should execute 150 shares at $149.00 (from ORDER_2001)",
+    "ORDER_2004": "Should execute 100 shares at $148.00 (from ORDER_2003)"
+  }
+}

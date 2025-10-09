@@ -1,0 +1,158 @@
+{
+  "testScenario": "Stop Loss Order Tests",
+  "description": "Test stop loss orders (stop market) that trigger when price moves",
+  "payloads": [
+    {
+      "name": "Limit Buy Order - User9 buys 100 AAPL at $150.00 (Establish price)",
+      "topic": "orders.v1",
+      "key": "ORDER_3001",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3001-20251009235200000",
+        "timeStamp": "2025-01-10T11:00:00Z",
+        "payload": {
+          "orderId": "3001-20251009235516000",
+          "userId": "user9",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 150.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User10 sells 100 AAPL at $150.00 (Execute to set lastTradedPrice)",
+      "topic": "orders.v1",
+      "key": "ORDER_3002",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3002-20251009235200001",
+        "timeStamp": "2025-01-10T11:00:05Z",
+        "payload": {
+          "orderId": "3002-20251009235516001",
+          "userId": "user10",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 150.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:00:05Z"
+        }
+      }
+    },
+    {
+      "name": "Stop Loss Sell Order - User11 stop at $148.00 (triggers if price falls)",
+      "topic": "orders.v1",
+      "key": "ORDER_3003",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3003-20251009235200002",
+        "timeStamp": "2025-01-10T11:01:00Z",
+        "payload": {
+          "orderId": "3003-20251009235516002",
+          "userId": "user11",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "STOP_MARKET",
+          "quantity": 100,
+          "stopPrice": 148.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:01:00Z"
+        }
+      }
+    },
+    {
+      "name": "Stop Loss Buy Order - User12 stop at $152.00 (triggers if price rises)",
+      "topic": "orders.v1",
+      "key": "ORDER_3004",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3004-20251009235200003",
+        "timeStamp": "2025-01-10T11:01:05Z",
+        "payload": {
+          "orderId": "3004-20251009235516003",
+          "userId": "user12",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "STOP_MARKET",
+          "quantity": 100,
+          "stopPrice": 152.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:01:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User13 sells 50 AAPL at $147.50 (Trigger stop)",
+      "topic": "orders.v1",
+      "key": "ORDER_3005",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3005-20251009235200004",
+        "timeStamp": "2025-01-10T11:02:00Z",
+        "payload": {
+          "orderId": "3005-20251009235516004",
+          "userId": "user13",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 50,
+          "limitPrice": 147.5,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:02:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Buy Order - User14 buys 50 AAPL at $147.50 (Match and drop price)",
+      "topic": "orders.v1",
+      "key": "ORDER_3006",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3006-20251009235200005",
+        "timeStamp": "2025-01-10T11:02:05Z",
+        "payload": {
+          "orderId": "3006-20251009235516005",
+          "userId": "user14",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 50,
+          "limitPrice": 147.5,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:02:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Buy Order - User15 to match triggered stop loss",
+      "topic": "orders.v1",
+      "key": "ORDER_3007",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-3007-20251009235200006",
+        "timeStamp": "2025-01-10T11:02:10Z",
+        "payload": {
+          "orderId": "3007-20251009235516006",
+          "userId": "user15",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 147.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T11:02:10Z"
+        }
+      }
+    }
+  ],
+  "expectedResults": {
+    "ORDER_3003": "Stop loss should trigger when price drops to $147.50, converts to market order",
+    "ORDER_3004": "Should remain as stop order (not triggered)",
+    "lastTradedPrice": "$147.50 after ORDER_3006 execution"
+  }
+}

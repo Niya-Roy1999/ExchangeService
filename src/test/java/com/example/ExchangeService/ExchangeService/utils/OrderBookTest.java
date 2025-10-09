@@ -1,9 +1,10 @@
 package com.example.ExchangeService.ExchangeService.utils;
 
 import com.example.ExchangeService.ExchangeService.entities.Execution;
-import com.example.ExchangeService.ExchangeService.Model.Order;
+import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.*;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
+import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,42 +21,79 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OrderBookTest {
 
     private OrderBook orderBook;
+    private TimeInForceHandler timeInForceHandler;
     private LocalDateTime now;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        orderBook = new OrderBook();
+
+        // Create components
+        OrderQueue orderQueue = new OrderQueue();
+        TradeExecutor tradeExecutor = new TradeExecutor();
+        TrailingStopManager trailingStopManager = new TrailingStopManager();
+        StopOrderManager stopOrderManager = new StopOrderManager(tradeExecutor, trailingStopManager);
+        OCOOrderManager ocoOrderManager = new OCOOrderManager();
+        OrderMatcher orderMatcher = new OrderMatcher(tradeExecutor, orderQueue);
+        timeInForceHandler = new TimeInForceHandler();
+
+        // Create OrderBook with all dependencies
+        orderBook = new OrderBook(
+            orderQueue,
+            stopOrderManager,
+            ocoOrderManager,
+            trailingStopManager,
+            orderMatcher,
+            tradeExecutor
+        );
+        orderBook.setTimeInForceHandler(timeInForceHandler);
         now = LocalDateTime.now();
     }
 
-    private Order createOrder(String orderId, OrderType type, OrderSide side, int quantity, BigDecimal price, String userId) {
-        return Order.builder()
-                .orderId(orderId)
-                .orderType(type)
-                .orderSide(side)
-                .quantity(quantity)
-                .price(price)
-                .userId(userId)
-                .instrumentId("AAPL")
-                .timeStamp(now.toInstant(ZoneOffset.UTC))
-                .filledQuantity(0)
-                .build();
+    private BaseOrder createOrder(String orderId, OrderType type, OrderSide side, int quantity, BigDecimal price, String userId) {
+        BaseOrder order;
+        if (type == OrderType.MARKET) {
+            MarketOrder marketOrder = new MarketOrder();
+            order = marketOrder;
+        } else {
+            LimitOrder limitOrder = new LimitOrder();
+            limitOrder.setPrice(price);
+            order = limitOrder;
+        }
+
+        order.setOrderId(orderId);
+        order.setOrderSide(side);
+        order.setQuantity(quantity);
+        order.setUserId(userId);
+        order.setInstrumentId("AAPL");
+        order.setTimestamp(now);
+        order.setOrderType(type);
+        order.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
+        return order;
     }
 
-    private Order createStopOrder(String orderId, OrderType type, OrderSide side, int quantity, BigDecimal price, BigDecimal stopPrice, String userId) {
-        return Order.builder()
-                .orderId(orderId)
-                .orderType(type)
-                .orderSide(side)
-                .quantity(quantity)
-                .price(price)
-                .stopPrice(stopPrice)
-                .userId(userId)
-                .instrumentId("AAPL")
-                .timeStamp(now.toInstant(ZoneOffset.UTC))
-                .filledQuantity(0)
-                .build();
+    private BaseOrder createStopOrder(String orderId, OrderType type, OrderSide side, int quantity, BigDecimal price, BigDecimal stopPrice, String userId) {
+        BaseOrder order;
+        if (type == OrderType.STOP_MARKET) {
+            StopLossOrder stopLossOrder = new StopLossOrder();
+            stopLossOrder.setStopPrice(stopPrice);
+            order = stopLossOrder;
+        } else {
+            StopLimitOrder stopLimitOrder = new StopLimitOrder();
+            stopLimitOrder.setStopPrice(stopPrice);
+            stopLimitOrder.setLimitPrice(price);
+            order = stopLimitOrder;
+        }
+
+        order.setOrderId(orderId);
+        order.setOrderSide(side);
+        order.setQuantity(quantity);
+        order.setUserId(userId);
+        order.setInstrumentId("AAPL");
+        order.setTimestamp(now);
+        order.setOrderType(type);
+        order.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
+        return order;
     }
 
     @Nested
@@ -65,8 +103,8 @@ public class OrderBookTest {
         @Test
         @DisplayName("Limit Buy vs Limit Sell - Exact Match")
         void testLimitOrderExactMatch() {
-            Order buyOrder = createOrder("1", OrderType.LIMIT, OrderSide.BUY, 100, new BigDecimal("10.00"), "user1");
-            Order sellOrder = createOrder("2", OrderType.LIMIT, OrderSide.SELL, 100, new BigDecimal("10.00"), "user2");
+            BaseOrder buyOrder = createOrder("1", OrderType.LIMIT, OrderSide.BUY, 100, new BigDecimal("10.00"), "user1");
+            BaseOrder sellOrder = createOrder("2", OrderType.LIMIT, OrderSide.SELL, 100, new BigDecimal("10.00"), "user2");
             orderBook.addOrder(buyOrder);
             List<TradeResult> results = orderBook.addOrder(sellOrder);
 

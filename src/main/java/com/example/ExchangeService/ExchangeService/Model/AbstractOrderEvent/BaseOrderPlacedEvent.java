@@ -16,7 +16,8 @@ import java.time.Instant;
         @JsonSubTypes.Type(value = StopLossOrderPlacedEvent.class, name = "STOP_MARKET"),
         @JsonSubTypes.Type(value = StopLimitOrderPlacedEvent.class, name = "STOP_LIMIT"),
         @JsonSubTypes.Type(value = TrailingStopOrderPlacedEvent.class, name = "TRAILING_STOP"),
-        @JsonSubTypes.Type(value = IcebergOrderPlacedEvent.class, name = "ICEBERG")
+        @JsonSubTypes.Type(value = IcebergOrderPlacedEvent.class, name = "ICEBERG"),
+        @JsonSubTypes.Type(value = OCOOrderPlacedEvent.class, name = "ONE_CANCELS_OTHER")
 })
 @Data
 public abstract class BaseOrderPlacedEvent {

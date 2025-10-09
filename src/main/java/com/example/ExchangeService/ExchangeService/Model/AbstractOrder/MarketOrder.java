@@ -2,7 +2,6 @@ package com.example.ExchangeService.ExchangeService.Model.AbstractOrder;
 
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @EqualsAndHashCode(callSuper = true)

@@ -7,5 +7,6 @@ public enum OrderType {
     STOP_LIMIT,
     TRAILING_STOP,
     ICEBERG,
-    PEGGED
+    PEGGED,
+    ONE_CANCELS_OTHER
 }

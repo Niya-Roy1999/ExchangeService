@@ -2,7 +2,6 @@ package com.example.ExchangeService.ExchangeService.Model.AbstractOrder;
 
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import lombok.*;
-
 import java.math.BigDecimal;
 
 @Data

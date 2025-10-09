@@ -3,7 +3,6 @@ package com.example.ExchangeService.ExchangeService.Model.AbstractOrder;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.math.BigDecimal;

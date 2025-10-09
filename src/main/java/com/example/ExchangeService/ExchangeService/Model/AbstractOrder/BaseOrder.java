@@ -4,7 +4,6 @@ import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
 import lombok.*;
-
 import java.time.Instant;
 
 @Data

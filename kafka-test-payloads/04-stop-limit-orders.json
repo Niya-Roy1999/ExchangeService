@@ -1,0 +1,137 @@
+{
+  "testScenario": "Stop Limit Order Tests",
+  "description": "Test stop limit orders that trigger and convert to limit orders",
+  "payloads": [
+    {
+      "name": "Limit Buy Order - User16 buys 100 AAPL at $155.00",
+      "topic": "orders.v1",
+      "key": "ORDER_4001",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4001-20251009235200000",
+        "timeStamp": "2025-01-10T12:00:00Z",
+        "payload": {
+          "orderId": "4001-20251009235516000",
+          "userId": "user16",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 155.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User17 sells 100 AAPL at $155.00",
+      "topic": "orders.v1",
+      "key": "ORDER_4002",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4002-20251009235200001",
+        "timeStamp": "2025-01-10T12:00:05Z",
+        "payload": {
+          "orderId": "4002-20251009235516001",
+          "userId": "user17",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 155.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:00:05Z"
+        }
+      }
+    },
+    {
+      "name": "Stop Limit Buy Order - User18 stop at $157, limit at $158",
+      "topic": "orders.v1",
+      "key": "ORDER_4003",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4003-20251009235200002",
+        "timeStamp": "2025-01-10T12:01:00Z",
+        "payload": {
+          "orderId": "4003-20251009235516002",
+          "userId": "user18",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "STOP_LIMIT",
+          "quantity": 100,
+          "stopPrice": 157.0,
+          "limitPrice": 158.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:01:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User19 sells 50 AAPL at $157.50",
+      "topic": "orders.v1",
+      "key": "ORDER_4004",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4004-20251009235200003",
+        "timeStamp": "2025-01-10T12:02:00Z",
+        "payload": {
+          "orderId": "4004-20251009235516003",
+          "userId": "user19",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 50,
+          "limitPrice": 157.5,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:02:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Buy Order - User20 buys 50 AAPL at $157.50 (Trigger stop)",
+      "topic": "orders.v1",
+      "key": "ORDER_4005",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4005-20251009235200004",
+        "timeStamp": "2025-01-10T12:02:05Z",
+        "payload": {
+          "orderId": "4005-20251009235516004",
+          "userId": "user20",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 50,
+          "limitPrice": 157.5,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:02:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User21 sells 100 AAPL at $157.80 (Match triggered stop limit)",
+      "topic": "orders.v1",
+      "key": "ORDER_4006",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-4006-20251009235200005",
+        "timeStamp": "2025-01-10T12:02:10Z",
+        "payload": {
+          "orderId": "4006-20251009235516005",
+          "userId": "user21",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 157.8,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T12:02:10Z"
+        }
+      }
+    }
+  ],
+  "expectedResults": {
+    "ORDER_4003": "Triggers at $157.50, converts to limit order with limit price $158.00",
+    "ORDER_4003_4006": "Should execute 100 shares at $157.80 (within limit)"
+  }
+}

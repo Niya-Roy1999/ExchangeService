@@ -1,0 +1,94 @@
+{
+  "testScenario": "Limit Order Tests - Basic Buy and Sell",
+  "description": "Test limit orders with exact match, partial fill, and price improvement scenarios",
+  "payloads": [
+    {
+      "name": "Limit Buy Order - User1 buys 100 AAPL at $150.00",
+      "topic": "orders.v1",
+      "key": "ORDER_1001",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-1001-20251009235200000",
+        "timeStamp": "2025-01-10T10:00:00Z",
+        "payload": {
+          "orderId": "1001-20251009235516000",
+          "userId": "user1",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 150.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User2 sells 100 AAPL at $150.00 (Exact Match)",
+      "topic": "orders.v1",
+      "key": "ORDER_1002",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-1002-20251009235200001",
+        "timeStamp": "2025-01-10T10:00:05Z",
+        "payload": {
+          "orderId": "1002-20251009235516001",
+          "userId": "user2",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 150.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:00:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Buy Order - User3 buys 200 AAPL at $151.00",
+      "topic": "orders.v1",
+      "key": "ORDER_1003",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-1003-20251009235200002",
+        "timeStamp": "2025-01-10T10:01:00Z",
+        "payload": {
+          "orderId": "1003-20251009235516002",
+          "userId": "user3",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "LIMIT",
+          "quantity": 200,
+          "limitPrice": 151.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:01:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User4 sells 100 AAPL at $150.50 (Partial Fill)",
+      "topic": "orders.v1",
+      "key": "ORDER_1004",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-1004-20251009235200003",
+        "timeStamp": "2025-01-10T10:01:05Z",
+        "payload": {
+          "orderId": "1004-20251009235516003",
+          "userId": "user4",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 100,
+          "limitPrice": 150.5,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T10:01:05Z"
+        }
+      }
+    }
+  ],
+  "expectedResults": {
+    "ORDER_1001_1002": "Should execute 100 shares at $150.00",
+    "ORDER_1003_1004": "Should execute 100 shares at $150.50 (price improvement for user3)"
+  }
+}

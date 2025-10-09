@@ -1,0 +1,98 @@
+{
+  "testScenario": "Iceberg Order Tests",
+  "description": "Test iceberg orders with hidden quantity that reveals gradually",
+  "payloads": [
+    {
+      "name": "Iceberg Buy Order - User29 buys 500 AAPL at $165, display only 100",
+      "topic": "orders.v1",
+      "key": "ORDER_6001",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-6001-20251009235200000",
+        "timeStamp": "2025-01-10T14:00:00Z",
+        "payload": {
+          "orderId": "6001-20251009235516000",
+          "userId": "user29",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "orderType": "ICEBERG",
+          "quantity": 500,
+          "price": 165.0,
+          "displayQuantity": 100,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T14:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User30 sells 150 AAPL at $165.00",
+      "topic": "orders.v1",
+      "key": "ORDER_6002",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-6002-20251009235200001",
+        "timeStamp": "2025-01-10T14:00:05Z",
+        "payload": {
+          "orderId": "6002-20251009235516001",
+          "userId": "user30",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 150,
+          "limitPrice": 165.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T14:00:05Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User31 sells 200 AAPL at $165.00",
+      "topic": "orders.v1",
+      "key": "ORDER_6003",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-6003-20251009235200002",
+        "timeStamp": "2025-01-10T14:01:00Z",
+        "payload": {
+          "orderId": "6003-20251009235516002",
+          "userId": "user31",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 200,
+          "limitPrice": 165.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T14:01:00Z"
+        }
+      }
+    },
+    {
+      "name": "Limit Sell Order - User32 sells 200 AAPL at $165.00 (Complete iceberg)",
+      "topic": "orders.v1",
+      "key": "ORDER_6004",
+      "value": {
+        "eventType": "ORDER_PLACED",
+        "correlationId": "evt-6004-20251009235200003",
+        "timeStamp": "2025-01-10T14:01:05Z",
+        "payload": {
+          "orderId": "6004-20251009235516003",
+          "userId": "user32",
+          "symbol": "AAPL",
+          "side": "SELL",
+          "orderType": "LIMIT",
+          "quantity": 200,
+          "limitPrice": 165.0,
+          "timeInForce": "GOOD_TILL_CANCELLED",
+          "timestamp": "2025-01-10T14:01:05Z"
+        }
+      }
+    }
+  ],
+  "expectedResults": {
+    "ORDER_6001_display": "Only 100 shares visible at a time",
+    "ORDER_6001_6002": "First 100 shares execute, next 100 revealed",
+    "ORDER_6001_6003": "Next 100 execute, another 100 revealed",
+    "ORDER_6001_6004": "Remaining 200 execute completely",
+    "ORDER_6001_total": "Total 500 shares filled across multiple executions"
+  }
+}

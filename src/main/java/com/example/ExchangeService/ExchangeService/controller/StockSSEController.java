@@ -2,8 +2,8 @@ package com.example.ExchangeService.ExchangeService.controller;
 
 import com.example.ExchangeService.ExchangeService.Model.StockQuote;
 import com.example.ExchangeService.ExchangeService.service.FinnhubService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
