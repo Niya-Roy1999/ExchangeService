@@ -98,6 +98,11 @@ public class OrderBook {
             return tradeResults;
         }
 
+        if(order instanceof TrailingStopOrder) {
+            TrailingStopOrder trailingStopOrder = (TrailingStopOrder) order;
+            initializeTrailingStop(trailingStopOrder);
+        }
+
         // Stop orders go to stopOrders list
         if (isStopOrder(order)) {
             stopOrders.add(order);
@@ -111,6 +116,39 @@ public class OrderBook {
         cleanUpExpiredOrders();
         printOrderBookState();
         return tradeResults;
+    }
+
+    private void initializeTrailingStop(TrailingStopOrder order) {
+        if(lastTradedPrice.compareTo(BigDecimal.ZERO) < 0) {
+            if(order.getOrderSide() == OrderSide.SELL) {
+                order.setHighestPrice(lastTradedPrice);
+            } else order.setLowestPrice(lastTradedPrice);
+
+            if(order.getStopPrice() == null) {
+                order.updateStopPrice(lastTradedPrice);
+                order.setInitialStopPrice(order.getStopPrice());
+            } else order.setInitialStopPrice(order.getStopPrice());
+            log.info("Initialized trailing stop order {}: stopPrice={}, highestPrice={}, lowestPrice={}",
+                    order.getOrderId(), order.getStopPrice(),
+                    order.getHighestPrice(), order.getLowestPrice());
+        }
+    }
+
+    private void updateTrailingStops(BigDecimal currentPrice) {
+        if(currentPrice == null || currentPrice.compareTo(BigDecimal.ZERO) <= 0) return;
+        for(BaseOrder order: stopOrders) {
+            if(order instanceof TrailingStopOrder) {
+                TrailingStopOrder trailingStopOrder =(TrailingStopOrder)  order;
+                boolean updated = trailingStopOrder.updateStopPrice(currentPrice);
+                if(updated) {
+                    log.info("Updated trailing stop {}: new stopPrice={}, highestPrice={}, lowestPrice={}",
+                            trailingStopOrder.getOrderId(),
+                            trailingStopOrder.getStopPrice(),
+                            trailingStopOrder.getHighestPrice(),
+                            trailingStopOrder.getLowestPrice());
+                }
+            }
+        }
     }
 
     private int calculateAvailableLiquidity(BaseOrder order) {
@@ -286,7 +324,16 @@ public class OrderBook {
         }
         if (!stopOrders.isEmpty()) {
             log.info("STOP Orders:");
-            stopOrders.forEach(o -> log.info("{}", o));
+            stopOrders.forEach(o -> {
+                if (o instanceof TrailingStopOrder) {
+                    TrailingStopOrder ts = (TrailingStopOrder) o;
+                    log.info("TrailingStop: orderId={}, side={}, stopPrice={}, trailAmount={}, highest={}, lowest={}",
+                            ts.getOrderId(), ts.getOrderSide(), ts.getStopPrice(),
+                            ts.getTrailAmount(), ts.getHighestPrice(), ts.getLowestPrice());
+                } else {
+                    log.info("{}", o);
+                }
+            });
         }
         if (!waitingMarketOrders.isEmpty()) {
             log.info("WAITING MARKET Orders:");
@@ -307,7 +354,17 @@ public class OrderBook {
             boolean triggered = false;
             BigDecimal stopPrice = null;
 
-            if (stopOrder instanceof StopLossOrder) {
+            if(stopOrder instanceof  TrailingStopOrder) {
+                TrailingStopOrder trailingStopOrder = (TrailingStopOrder) stopOrder;
+                triggered = trailingStopOrder.shouldTrigger(lastTradedPrice);
+                if(triggered) {
+                    log.info("Trailing stop order triggered: orderId={}, stopPrice={}, lastTradedPrice={}",
+                            trailingStopOrder.getOrderId(),
+                            trailingStopOrder.getStopPrice(),
+                            lastTradedPrice);
+                }
+            }
+            else if (stopOrder instanceof StopLossOrder) {
                 stopPrice = ((StopLossOrder) stopOrder).getStopPrice();
             } else if (stopOrder instanceof StopLimitOrder) {
                 stopPrice = ((StopLimitOrder) stopOrder).getStopPrice();
@@ -364,6 +421,11 @@ public class OrderBook {
             copyBaseOrderFields(stopOrder, limitOrder);
             limitOrder.setPrice(stopLimit.getLimitPrice());
             return limitOrder;
+        } else if(stopOrder instanceof  TrailingStopOrder) {
+            MarketOrder marketOrder = new MarketOrder();
+            copyBaseOrderFields(stopOrder, marketOrder);
+            log.info("Converted trailing stop {} to market order", stopOrder.getOrderId());
+            return marketOrder;
         }
         return null;
     }
@@ -388,6 +450,7 @@ public class OrderBook {
         incoming.setFilledQuantity(incoming.getFilledQuantity() + quantity);
         existing.setFilledQuantity(existing.getFilledQuantity() + quantity);
         lastTradedPrice = executionPrice;
+        updateTrailingStops(executionPrice);
 
         Execution execution = Execution.builder()
                 .orderId(Long.parseLong(incoming.getOrderId()))

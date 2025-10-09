@@ -24,6 +24,10 @@ public abstract class BaseOrder {
     private Instant goodTillDate;
     private Instant expiryTime;
 
+    protected BaseOrder(OrderType orderType) {
+        this.orderType = orderType;
+    }
+
     public boolean isFullyFilled() { return filledQuantity >= quantity; }
     public int getRemainingQuantity() { return quantity - filledQuantity; }
 }

@@ -2,6 +2,7 @@ package com.example.ExchangeService.ExchangeService.utils;
 
 import com.example.ExchangeService.ExchangeService.Model.AbstractOrder.*;
 import com.example.ExchangeService.ExchangeService.Model.AbstractOrderEvent.*;
+import com.example.ExchangeService.ExchangeService.enums.OrderType;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -40,10 +41,37 @@ public class OrderMapper {
                 order.setLimitPrice(BigDecimal.valueOf(e.getLimitPrice()));       // set limit price
                 return order;
             }
-
+            case TRAILING_STOP -> {
+                TrailingStopOrderPlacedEvent e = (TrailingStopOrderPlacedEvent) event;
+                return mapToTrailingStopOrder(e);
+            }
             // add other types similarly
             default -> throw new IllegalArgumentException("Unknown order type: " + event.getOrderType());
         }
+    }
+
+    private TrailingStopOrder mapToTrailingStopOrder(TrailingStopOrderPlacedEvent event) {
+        TrailingStopOrder order = new TrailingStopOrder();
+        setBaseFields(order, event);
+        order.setOrderType(OrderType.TRAILING_STOP);
+
+        // Set initial stop price if provided
+        if (event.getStopPrice() != null) {
+            order.setStopPrice(BigDecimal.valueOf(event.getStopPrice()));
+            order.setInitialStopPrice(BigDecimal.valueOf(event.getStopPrice()));
+        }
+
+        // Set trail amount or percent (only one should be provided)
+        if (event.getTrailAmount() != null) {
+            order.setTrailAmount(BigDecimal.valueOf(event.getTrailAmount()));
+        } else if (event.getTrailPercent() != null) {
+            order.setTrailPercent(BigDecimal.valueOf(event.getTrailPercent()));
+        } else {
+            throw new IllegalArgumentException(
+                    "TrailingStop order must have either trailAmount or trailPercent");
+        }
+
+        return order;
     }
 
     private void setBaseFields(BaseOrder order, BaseOrderPlacedEvent event) {

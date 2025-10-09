@@ -3,7 +3,6 @@ package com.example.ExchangeService.ExchangeService.service;
 import com.example.ExchangeService.ExchangeService.Model.AbstractOrderEvent.*;
 import com.example.ExchangeService.ExchangeService.enums.OrderSide;
 import com.example.ExchangeService.ExchangeService.enums.TimeInForce;
-import com.example.ExchangeService.ExchangeService.enums.TrailingType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -23,9 +22,7 @@ public class OrderEventValidator {
             validateStopLossOrder((StopLossOrderPlacedEvent) event);
         } else if (event instanceof StopLimitOrderPlacedEvent) {
             validateStopLimitOrder((StopLimitOrderPlacedEvent) event);
-        } else if (event instanceof TrailingStopOrderPlacedEvent) {
-            validateTrailingStopOrder((TrailingStopOrderPlacedEvent) event);
-        } else if (event instanceof IcebergOrderPlacedEvent) {
+        }  else if (event instanceof IcebergOrderPlacedEvent) {
             validateIcebergOrder((IcebergOrderPlacedEvent) event);
         } else if (event instanceof MarketOrderPlacedEvent) {
             validateMarketOrder((MarketOrderPlacedEvent) event);
@@ -77,21 +74,6 @@ public class OrderEventValidator {
         }
         if (event.getSide() == OrderSide.BUY && event.getStopPrice() < event.getLimitPrice()) {
             throw new ValidationException("For buy stop-limit: stop price must be >= limit price");
-        }
-    }
-
-    private void validateTrailingStopOrder(TrailingStopOrderPlacedEvent event) throws ValidationException {
-        if (event.getTrailingOffset() == null || event.getTrailingOffset() <= 0) {
-            throw new ValidationException("Trailing stop must have a positive offset");
-        }
-        if (event.getTrailingType() == null) {
-            throw new ValidationException("Trailing stop must specify trailing type");
-        }
-
-        if (event.getTrailingType() == TrailingType.PERCENTAGE) {
-            if (event.getTrailingOffset() > 100) {
-                throw new ValidationException("Percentage trailing offset cannot exceed 100%");
-            }
         }
     }
 
